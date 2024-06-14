@@ -54,8 +54,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.webview.page().setWebChannel(channel)
 
         # Generate Folium map and convert it to HTML
-        self.m = folium.Map(location=[50.77899, 14.21680], zoom_start=19, max_zoom=19, min_zoom=16)
-        Marker([50.77899, 14.21680], popup="StrEda").add_to(self.m)
+        self.m = folium.Map(location=[50.77899, 14.21680], zoom_start=19, max_zoom=19, min_zoom=16, scrollWheelZoom=False)
 
         # Save the map as an HTML file or convert to HTML string
         self.m.save("map.html")
@@ -68,41 +67,60 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
         # Setup map events
         self.webview.loadFinished.connect(self.setup_map_events)
+        self.webview.loadFinished.connect(self.add_markers)
 
     def setup_map_events(self):
         script = """
-            function initializeMapEvents() {
-                var mapElementId = document.getElementsByClassName('folium-map')[0].id;
-                var map = window[mapElementId];
-
-                map.on('moveend', function() {
-                    var center = map.getCenter();
-                    new QWebChannel(qt.webChannelTransport, function (channel) {
-                        var bridge = channel.objects.bridge;
-                        bridge.onMapMoved(center.lat, center.lng);
-                    });
+            let markers = [];
+            
+            // Add a marker to the map
+            function addMarker(id, lat, lng) {
+                let marker = L.marker([lat, lng], popup=id.toString()).addTo(map);
+                markers[id] = marker;
+            }
+        
+            var mapElementId = document.getElementsByClassName('folium-map')[0].id;
+            var map = window[mapElementId];
+            
+            // Attach event listeners to continuously update marker position while moving the map
+            map.on('movestart', function() {
+                var center = map.getCenter();
+                new QWebChannel(qt.webChannelTransport, function (channel) {
+                    var bridge = channel.objects.bridge;
+                    bridge.onMapMoving(center.lat, center.lng);
                 });
-                console.log('Map events setup successfully');
-            }
-
-            if (typeof L === 'undefined') {
-                console.log('Leaflet not loaded yet, retrying...');
-                setTimeout(initializeMapEvents, 100);
-            } else {
-                initializeMapEvents();
-            }
+            });
+            
+            map.on('move', function() {
+                var center = map.getCenter();
+                new QWebChannel(qt.webChannelTransport, function (channel) {
+                    var bridge = channel.objects.bridge;
+                    bridge.onMapMoving(center.lat, center.lng);
+                });
+            });
+            
+            console.log('Map events setup successfully');
         """
         self.webview.page().runJavaScript(script)
         print("Map events setup successfully")
 
     @pyqtSlot(float, float)
-    def onMapMoved(self, lat, lng):
-        self.gps_text.setText(f"GPS: {lat}, {lng}")
-        script = f"""
+    def onMapMoving(self, lat, lng):
+        self.gps_text.setText(f"{lat}, {lng}")
+        script = """
                 var mapElementId = document.getElementsByClassName('folium-map')[0].id;
                 var map = window[mapElementId];
-                var marker = L.marker([{lat}, {lng}]).addTo(map);
-                """
+                var marker = markers[0];
+                if (marker) {
+                    marker.setLatLng([%s, %s]);
+                }
+                """ % (lat, lng)
+        self.webview.page().runJavaScript(script)
+
+    def add_markers(self):
+        script = """
+            addMarker(0, 50.77899, 14.21680);
+            """
         self.webview.page().runJavaScript(script)
 
     def play_video(self):

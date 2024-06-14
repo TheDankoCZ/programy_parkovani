@@ -25,7 +25,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_1dc4db954e0579d43bf6b5aa111e1159 {
+                #map_a231d73ee476cfa60798d16826648592 {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -39,20 +39,21 @@
 <body>
     
     
-            <div class="folium-map" id="map_1dc4db954e0579d43bf6b5aa111e1159" ></div>
+            <div class="folium-map" id="map_a231d73ee476cfa60798d16826648592" ></div>
         
 </body>
 <script>
     
     
-            var map_1dc4db954e0579d43bf6b5aa111e1159 = L.map(
-                "map_1dc4db954e0579d43bf6b5aa111e1159",
+            var map_a231d73ee476cfa60798d16826648592 = L.map(
+                "map_a231d73ee476cfa60798d16826648592",
                 {
                     center: [50.77899, 14.2168],
                     crs: L.CRS.EPSG3857,
                     zoom: 19,
                     zoomControl: true,
                     preferCanvas: false,
+                    scrollWheelZoom: false,
                 }
             );
 
@@ -60,34 +61,13 @@
 
         
     
-            var tile_layer_b05ae09c5fb72197eee9b1e7d3817a46 = L.tileLayer(
+            var tile_layer_e869b81eb387dd162d8fbdbcefc70f18 = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {"attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors", "detectRetina": false, "maxNativeZoom": 19, "maxZoom": 19, "minZoom": 16, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false}
             );
         
     
-            tile_layer_b05ae09c5fb72197eee9b1e7d3817a46.addTo(map_1dc4db954e0579d43bf6b5aa111e1159);
+            tile_layer_e869b81eb387dd162d8fbdbcefc70f18.addTo(map_a231d73ee476cfa60798d16826648592);
         
-    
-            var marker_f4e54ddc2b0474b13d180c2e66e65a28 = L.marker(
-                [50.77899, 14.2168],
-                {}
-            ).addTo(map_1dc4db954e0579d43bf6b5aa111e1159);
-        
-    
-        var popup_0f05bd9ecb38a8759843e4427148efcf = L.popup({"maxWidth": "100%"});
-
-        
-            
-                var html_3c873ecf667b663a6ed91aaf8e08a992 = $(`<div id="html_3c873ecf667b663a6ed91aaf8e08a992" style="width: 100.0%; height: 100.0%;">StrEda</div>`)[0];
-                popup_0f05bd9ecb38a8759843e4427148efcf.setContent(html_3c873ecf667b663a6ed91aaf8e08a992);
-            
-        
-
-        marker_f4e54ddc2b0474b13d180c2e66e65a28.bindPopup(popup_0f05bd9ecb38a8759843e4427148efcf)
-        ;
-
-        
-    
 </script>
 </html><script src="qrc:///qtwebchannel/qwebchannel.js"></script>
