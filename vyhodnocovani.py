@@ -29,19 +29,14 @@ class MainApp(QMainWindow, Ui_MainWindow):
         # Create a custom video widget with max width and height
         max_width = 1900
         max_height = 500
-        self.video_widget = CustomVideoWidget(max_width=max_width, max_height=max_height)
+        self.video_widget = CustomVideoWidget(max_width=max_width, max_height=max_height, labels_dir="D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/labels")
         self.videoLayout.addWidget(self.video_widget)
 
-        # Connect play button to media player
         self.zpet_na_zacatek.clicked.connect(self.play_video)
+        self.prehrat.clicked.connect(self.video_widget.pause_unpause)
 
         # Path to video file
         self.video_path = "D:/bakalarka/360 exports/2023-05-24 S04E03-360 11-55-004 (2)_cropped.mp4"
-
-        # Create a timer to update bounding boxes periodically
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_bounding_boxes)
-        self.timer.start(1000)  # Update every second
 
         # Create a QWebEngineView widget
         self.webview = QWebEngineView()
@@ -125,14 +120,6 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
     def play_video(self):
         self.video_widget.load_video(self.video_path)
-
-    def update_bounding_boxes(self):
-        # Example: Generate random bounding boxes
-        boxes = [QRect(random.randint(0, 400), random.randint(0, 300), 100, 100)]
-        self.set_bounding_boxes(boxes)
-
-    def set_bounding_boxes(self, boxes):
-        self.video_widget.setBoundingBoxes(boxes)
 
 
 if __name__ == "__main__":
