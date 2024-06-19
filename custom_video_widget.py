@@ -98,6 +98,8 @@ class CustomVideoWidget(QLabel):
                 painter.end()
 
                 self.setPixmap(pixmap)
+                # align pixmap to top
+                self.setAlignment(Qt.AlignTop)
             else:
                 print("Video ended or frame not available.")
                 self.cap.release()

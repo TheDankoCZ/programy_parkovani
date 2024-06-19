@@ -28,7 +28,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
         # Create a custom video widget with max width and height
         max_width = 1900
-        max_height = 500
+        max_height = 400
         self.video_widget = CustomVideoWidget(max_width=max_width, max_height=max_height, labels_dir="D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/labels")
         self.videoLayout.addWidget(self.video_widget)
 
