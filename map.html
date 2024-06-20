@@ -25,7 +25,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_baae98dfd6a11e37d67bd233c04b45fb {
+                #map_da7559b73f7d616db57a6c95761ff34f {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -39,14 +39,29 @@
 <body>
     
     
-            <div class="folium-map" id="map_baae98dfd6a11e37d67bd233c04b45fb" ></div>
+            <div class="folium-map" id="map_da7559b73f7d616db57a6c95761ff34f" ></div>
         
-</body>
+
+                <style>
+                .logo-control {
+                    position: absolute;
+                    bottom: 10px;
+                    left: 10px;
+                    z-index: 1000;
+                }
+                </style>
+                <div class="logo-control">
+                    <a href="#" onclick="bridge.open_external_link('https://mapy.cz/')">
+                        <img src="https://api.mapy.cz/img/api/logo.svg" alt="Mapy.cz Logo">
+                    </a>
+                </div>
+                </body>
+                
 <script>
     
     
-            var map_baae98dfd6a11e37d67bd233c04b45fb = L.map(
-                "map_baae98dfd6a11e37d67bd233c04b45fb",
+            var map_da7559b73f7d616db57a6c95761ff34f = L.map(
+                "map_da7559b73f7d616db57a6c95761ff34f",
                 {
                     center: [50.77899, 14.2168],
                     crs: L.CRS.EPSG3857,
@@ -61,13 +76,13 @@
 
         
     
-            var tile_layer_f761d8f642dbfc42f2fabf541717fe8b = L.tileLayer(
-                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                {"attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors", "detectRetina": false, "maxNativeZoom": 19, "maxZoom": 19, "minZoom": 16, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false}
+            var tile_layer_c18fa1096e7ae01e6f6d289c0b2776cd = L.tileLayer(
+                "https://api.mapy.cz/v1/maptiles/aerial/256/{z}/{x}/{y}?apikey=KbsiJFOb0edGZ6riv2tC_ljvHCtkgLDtlH6_MAd5Jpk",
+                {"attribution": "\u003ca href=\"#\" onclick=\"bridge.open_external_link(\u0027https://api.mapy.cz/copyright\u0027)\"\u003e\u0026copy; Seznam.cz a.s. a dal\u0161\u00ed\u003c/a\u003e", "detectRetina": false, "maxNativeZoom": 19, "maxZoom": 19, "minZoom": 16, "noWrap": false, "opacity": 1, "subdomains": "abc", "tms": false}
             );
         
     
-            tile_layer_f761d8f642dbfc42f2fabf541717fe8b.addTo(map_baae98dfd6a11e37d67bd233c04b45fb);
+            tile_layer_c18fa1096e7ae01e6f6d289c0b2776cd.addTo(map_da7559b73f7d616db57a6c95761ff34f);
         
 </script>
 </html><script src="qrc:///qtwebchannel/qwebchannel.js"></script>
