@@ -9,12 +9,12 @@ class CustomVideoWidget(QLabel):
     def __init__(self, parent=None, max_width=None, max_height=None, labels_dir=None):
         super().__init__(parent)
         self.box_coordinates = []
+        self.bounding_boxes = {}
         self.cap = None
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.StrongFocus)
         self.setAlignment(Qt.AlignCenter)
-        self.bounding_boxes = []
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_frame)
         self.is_paused = False
@@ -31,6 +31,11 @@ class CustomVideoWidget(QLabel):
         self.max_width = max_width
         self.max_height = max_height
 
+        self.bounding_box_callback = None
+
+    def set_bounding_box_callback(self, callback):
+        self.bounding_box_callback = callback
+
     def load_video(self, video_path):
         self.cap = cv2.VideoCapture(video_path)
         if not self.cap.isOpened():
@@ -39,27 +44,40 @@ class CustomVideoWidget(QLabel):
             print(f"Video {video_path} loaded successfully.")
         self.timer.start(30)  # Adjust based on video frame rate
         self.frame_index = 1
+        self.parse_label_files()
         self.video_name = os.path.basename(video_path).split('.')[0]
         self.resume_video()
 
-    def read_bounding_boxes(self, frame_index):
+    def parse_label_files(self):
+        self.bounding_boxes = {}
         if not self.labels_dir:
-            return []
+            return
 
-        label_file = os.path.join(self.labels_dir, f"{self.video_name}_{frame_index}.txt")
-        if not os.path.exists(label_file):
-            print(f"Label file {label_file} does not exist.")
-            return []
+        for label_file in os.listdir(self.labels_dir):
+            if label_file.endswith('.txt'):
+                file_path = os.path.join(self.labels_dir, label_file)
+                with open(file_path, 'r') as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) >= 7:
+                            frame_index = int(parts[0])
+                            class_id = int(parts[1])
+                            x_center, y_center = float(parts[2]), float(parts[3])
+                            width, height = float(parts[4]), float(parts[5])
+                            confidence = parts[6]
+                            if confidence != 'interpolated':
+                                confidence = float(confidence)
+                            # vehicle_id is the name of the txt file without the extension
+                            vehicle_id = int(os.path.basename(label_file).split('.')[0])
 
-        bounding_boxes = []
-        with open(label_file, 'r') as f:
-            for line in f:
-                parts = line.strip().split()
-                if len(parts) >= 7:
-                    class_id, x_center, y_center, width, height, confidence, vehicle_id = map(float, parts[:7])
-                    bounding_boxes.append((class_id, x_center, y_center, width, height, confidence, vehicle_id))
+                            if frame_index not in self.bounding_boxes:
+                                self.bounding_boxes[frame_index] = []
+                            self.bounding_boxes[frame_index].append(
+                                (class_id, x_center, y_center, width, height, confidence, vehicle_id)
+                            )
 
-        return bounding_boxes
+    def read_bounding_boxes(self, frame_index):
+        return self.bounding_boxes.get(frame_index, [])
 
     def update_frame(self):
         self.setFocus()
@@ -71,8 +89,8 @@ class CustomVideoWidget(QLabel):
                 step = channel * width
 
                 # Read bounding boxes for the current frame
-                self.bounding_boxes = self.read_bounding_boxes(self.frame_index)
-                print(f"Frame {self.frame_index}: {len(self.bounding_boxes)} bounding boxes")
+                current_frame_bounding_boxes = self.read_bounding_boxes(self.frame_index)
+                print(f"Frame {self.frame_index}: {len(current_frame_bounding_boxes)} bounding boxes")
                 self.frame_index += 1
 
                 q_img = QImage(frame.data, width, height, step, QImage.Format_RGB888)
@@ -87,7 +105,7 @@ class CustomVideoWidget(QLabel):
                 pen = QPen(QColor(255, 0, 0), 2)
                 painter.setPen(pen)
                 self.box_coordinates = []  # Store box coordinates separately
-                for box in self.bounding_boxes:
+                for box in current_frame_bounding_boxes:
                     class_id, x_center, y_center, box_width, box_height, confidence, vehicle_id = box
                     top_left_x = (x_center - box_width / 2) * pixmap.width()
                     top_left_y = (y_center - box_height / 2) * pixmap.height()
@@ -114,7 +132,8 @@ class CustomVideoWidget(QLabel):
             box_clicked = False
             for class_id, confidence, top_left_x, top_left_y, rect_width, rect_height, vehicle_id in self.box_coordinates:
                 if top_left_x <= x <= top_left_x + rect_width and top_left_y <= y <= top_left_y + rect_height:
-                    QToolTip.showText(event.globalPos(), f"Vehicle ID: {vehicle_id}, Confidence: {confidence}", self, QRect(), 5000)
+                    if self.bounding_box_callback:
+                        self.bounding_box_callback(vehicle_id)
                     box_clicked = True
                     break
             if not box_clicked:
