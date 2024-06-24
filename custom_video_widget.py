@@ -31,7 +31,11 @@ class CustomVideoWidget(QLabel):
         self.max_width = max_width
         self.max_height = max_height
 
+        self.frame_update_callback = None
         self.bounding_box_callback = None
+
+    def set_frame_update_callback(self, callback):
+        self.frame_update_callback = callback
 
     def set_bounding_box_callback(self, callback):
         self.bounding_box_callback = callback
@@ -118,6 +122,10 @@ class CustomVideoWidget(QLabel):
                 self.setPixmap(pixmap)
                 # align pixmap to top
                 self.setAlignment(Qt.AlignTop)
+
+                if self.frame_update_callback:
+                    self.frame_update_callback(self.frame_index)
+
             else:
                 print("Video ended or frame not available.")
                 self.cap.release()

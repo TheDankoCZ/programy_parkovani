@@ -1,3 +1,4 @@
+import math
 import sys
 import random
 
@@ -13,7 +14,8 @@ from folium import Marker
 from mainwindow import Ui_MainWindow  # Import the generated UI class
 from custom_video_widget import CustomVideoWidget  # Import the custom video widget class
 
-USE_MAPY_CZ = False     # True znamená využití dlaždic z Mapy.cz -> stojí to kredity, False znamená žádné dlaždice
+USE_MAPY_CZ = True     # True znamená využití dlaždic z Mapy.cz -> stojí to kredity, False znamená žádné dlaždice
+
 
 class WebEnginePage(QWebEnginePage):
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):
@@ -33,6 +35,8 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.video_widget = CustomVideoWidget(max_width=max_width, max_height=max_height, labels_dir="D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/labels")
         self.videoLayout.addWidget(self.video_widget)
 
+        self.camera_gps_coordinates = []
+        self.video_widget.set_frame_update_callback(self.update_camera_marker)
         self.video_widget.set_bounding_box_callback(self.bounding_box_clicked)
 
         self.zpet_na_zacatek.clicked.connect(self.play_video)
@@ -58,7 +62,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.webview.page().setWebChannel(channel)
 
         # Generate Folium map and convert it to HTML
-        self.m = folium.Map(location=[50.77899, 14.21680], zoom_start=19, max_zoom=19, min_zoom=16, scrollWheelZoom=False, tiles=None)
+        self.m = folium.Map(location=[50.45570138940419, 14.379894059611189], zoom_start=19, max_zoom=19, min_zoom=16, scrollWheelZoom=False, tiles=None)
 
         # read the API key from a file
         if USE_MAPY_CZ:
@@ -111,16 +115,21 @@ class MainApp(QMainWindow, Ui_MainWindow):
         # Append to the html file
         with open("map.html", "a") as f:
             f.write("<script src=\"qrc:///qtwebchannel/qwebchannel.js\"></script>")
+            f.write("<script src=\"leaflet.rotatedMarker.js\"></script>")   # include the Leaflet.RotatedMarker library
 
         self.webview.load(QtCore.QUrl.fromLocalFile("/map.html"))
 
         # Setup map events
         self.webview.loadFinished.connect(self.setup_map_events)
         self.webview.loadFinished.connect(self.add_markers)
+        self.webview.loadFinished.connect(lambda: self.draw_polyline_from_file("D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/test_route_gps2.txt"))
+        self.webview.loadFinished.connect(lambda: self.read_synced_camera_gps("D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/synced_test_route_gps2.txt"))
 
     def setup_map_events(self):
         script = """
             let markers = [];
+            var polyline = null;
+            var cameraMarker = null;
             
             var bridge = null;
             new QWebChannel(qt.webChannelTransport, function (channel) {
@@ -131,6 +140,35 @@ class MainApp(QMainWindow, Ui_MainWindow):
             function addMarker(id, lat, lng) {
                 let marker = L.marker([lat, lng], popup=id.toString()).addTo(map);
                 markers[id] = marker;
+            }
+            
+            // Draw polyline between points
+            function drawPolyline(coords) {
+                if (polyline) {
+                    map.removeLayer(polyline);
+                }
+                polyline = L.polyline(coords, {color: 'blue'}).addTo(map);
+            }
+            
+            // Update GPS marker position
+            function updateCameraMarker(lat, lng, angle) {
+                if (cameraMarker) {
+                    cameraMarker.setLatLng([lat, lng]);
+                    cameraMarker.setRotationAngle(angle);
+                } else {
+                    // Create custom icon using an SVG file
+                    var carIcon = L.icon({
+                        iconUrl: 'car-top-view-icon.svg',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    });
+                
+                    // Create rotated marker with custom icon
+                    cameraMarker = L.marker([lat, lng], {
+                        icon: carIcon,
+                        rotationAngle: angle
+                    }).addTo(map);
+                }
             }
         
             var mapElementId = document.getElementsByClassName('folium-map')[0].id;
@@ -167,9 +205,39 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
     def add_markers(self):
         script = """
-            addMarker(0, 50.77899, 14.21680);
+            addMarker(0, 50.45570138940419, 14.379894059611189);
             """
         self.webview.page().runJavaScript(script)
+
+    def draw_polyline_from_file(self, filepath):
+        gps = []
+        with open(filepath, 'r') as file:
+            for line in file:
+                lat, lng = map(float, line.strip().split(','))
+                gps.append([lat, lng])
+        script = f"drawPolyline({gps})"
+        self.webview.page().runJavaScript(script)
+
+    def read_synced_camera_gps(self, filepath):
+        with open(filepath, 'r') as file:
+            for line in file:
+                lat, lng = map(float, line.strip().split(','))
+                self.camera_gps_coordinates.append([lat, lng])
+
+    def update_camera_marker(self, frame_index):
+        if frame_index < len(self.camera_gps_coordinates):
+            lat, lng = self.camera_gps_coordinates[frame_index]
+            if frame_index > 0:
+                prev_lat, prev_lng = self.camera_gps_coordinates[frame_index - 1]
+                angle = self.calculate_angle(prev_lat, prev_lng, lat, lng)
+            else:
+                angle = 0
+            script = f"updateCameraMarker({lat}, {lng}, {angle})"
+            self.webview.page().runJavaScript(script)
+
+    def calculate_angle(self, lat1, lng1, lat2, lng2):
+        angle = math.degrees(math.atan2(lng2 - lng1, lat2 - lat1))
+        return angle
 
     def open_external_map(self, event):
         # GPS coordinates
