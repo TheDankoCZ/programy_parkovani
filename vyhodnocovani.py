@@ -14,7 +14,7 @@ from folium import Marker
 from mainwindow import Ui_MainWindow  # Import the generated UI class
 from custom_video_widget import CustomVideoWidget  # Import the custom video widget class
 
-USE_MAPY_CZ = True     # True znamená využití dlaždic z Mapy.cz -> stojí to kredity, False znamená žádné dlaždice
+USE_MAPY_CZ = False     # True znamená využití dlaždic z Mapy.cz -> stojí to kredity, False znamená žádné dlaždice
 
 
 class WebEnginePage(QWebEnginePage):
@@ -35,6 +35,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.video_widget = CustomVideoWidget(max_width=max_width, max_height=max_height, labels_dir="D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/labels")
         self.videoLayout.addWidget(self.video_widget)
 
+        self.prev_angle = 0
         self.camera_gps_coordinates = []
         self.video_widget.set_frame_update_callback(self.update_camera_marker)
         self.video_widget.set_bounding_box_callback(self.bounding_box_clicked)
@@ -154,19 +155,19 @@ class MainApp(QMainWindow, Ui_MainWindow):
             function updateCameraMarker(lat, lng, angle) {
                 if (cameraMarker) {
                     cameraMarker.setLatLng([lat, lng]);
-                    cameraMarker.setRotationAngle(angle);
+                    cameraMarker.setRotationAngle(angle - 12);
                 } else {
                     // Create custom icon using an SVG file
                     var carIcon = L.icon({
                         iconUrl: 'car-top-view-icon.svg',
                         iconSize: [32, 32],
-                        iconAnchor: [16, 16]
+                        iconAnchor: [16, 8]
                     });
                 
                     // Create rotated marker with custom icon
                     cameraMarker = L.marker([lat, lng], {
                         icon: carIcon,
-                        rotationAngle: angle
+                        rotationAngle: angle - 12
                     }).addTo(map);
                 }
             }
@@ -236,7 +237,10 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.webview.page().runJavaScript(script)
 
     def calculate_angle(self, lat1, lng1, lat2, lng2):
+        if lat1 == lat2 and lng1 == lng2:
+            return self.prev_angle
         angle = math.degrees(math.atan2(lng2 - lng1, lat2 - lat1))
+        self.prev_angle = angle
         return angle
 
     def open_external_map(self, event):
