@@ -1,5 +1,5 @@
 import os
-from PyQt5.QtWidgets import QLabel, QSizePolicy, QToolTip
+from PyQt5.QtWidgets import QLabel, QSizePolicy, QToolTip, QSlider, QVBoxLayout, QSpacerItem
 from PyQt5.QtCore import QTimer, Qt, QRect
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QColor, QMouseEvent, QCursor, QKeyEvent
 import cv2  # install opencv-python
@@ -18,9 +18,25 @@ class CustomVideoWidget(QLabel):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_frame)
         self.is_paused = False
+        self.is_seeking = False
+
         self.video_name = ""
         self.frame_index = 1
         self.labels_dir = labels_dir
+
+        self.selected_vehicle_id = None
+
+        self.spacer = QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.progress_bar = QSlider(Qt.Horizontal, self)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.sliderMoved.connect(self.seek_video)
+        self.progress_bar.sliderReleased.connect(self.slider_released)
+        self.layout = QVBoxLayout(self)
+        self.layout.addItem(self.spacer)
+        self.layout.addWidget(self.progress_bar)
+        self.setLayout(self.layout)
+        self.video_duration = 0
+        self.highlighted_frames = []
 
         # Set maximum size constraints if provided
         if max_width is not None:
@@ -48,6 +64,8 @@ class CustomVideoWidget(QLabel):
             print(f"Video {video_path} loaded successfully.")
         self.timer.start(30)  # Adjust based on video frame rate
         self.frame_index = 1
+        self.video_duration = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.progress_bar.setRange(0, self.video_duration)
         self.parse_label_files()
         self.video_name = os.path.basename(video_path).split('.')[0]
         self.resume_video()
@@ -85,7 +103,7 @@ class CustomVideoWidget(QLabel):
 
     def update_frame(self):
         self.setFocus()
-        if self.cap is not None and self.cap.isOpened() and not self.is_paused:
+        if self.cap is not None and self.cap.isOpened() and not self.is_paused and not self.is_seeking:
             ret, frame = self.cap.read()
             if ret:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -106,16 +124,22 @@ class CustomVideoWidget(QLabel):
 
                 # Draw bounding boxes on the pixmap
                 painter = QPainter(pixmap)
-                pen = QPen(QColor(255, 0, 0), 2)
-                painter.setPen(pen)
+                pen_nehotovo = QPen(QColor(255, 0, 0), 2)
+                pen_selected = QPen(QColor(0, 255, 0), 2)
+                pen_hotovo = QPen(QColor(0, 0, 255), 2)
+                pen_disabled = QPen(QColor(128, 128, 128), 2)
                 self.box_coordinates = []  # Store box coordinates separately
                 for box in current_frame_bounding_boxes:
                     class_id, x_center, y_center, box_width, box_height, confidence, vehicle_id = box
+                    if vehicle_id == self.selected_vehicle_id:
+                        painter.setPen(pen_selected)
+                    else:
+                        painter.setPen(pen_nehotovo)
                     top_left_x = (x_center - box_width / 2) * pixmap.width()
                     top_left_y = (y_center - box_height / 2) * pixmap.height()
                     rect_width = box_width * pixmap.width()
                     rect_height = box_height * pixmap.height()
-                    painter.drawRect(top_left_x, top_left_y, rect_width, rect_height)
+                    painter.drawRect(QRect(top_left_x, top_left_y, rect_width, rect_height))
                     self.box_coordinates.append((class_id, confidence, top_left_x, top_left_y, rect_width, rect_height, vehicle_id))
                 painter.end()
 
@@ -126,14 +150,26 @@ class CustomVideoWidget(QLabel):
                 if self.frame_update_callback:
                     self.frame_update_callback(self.frame_index)
 
+                self.progress_bar.setValue(self.frame_index)
+
             else:
                 print("Video ended or frame not available.")
                 self.cap.release()
                 self.timer.stop()
         else:
-            print("Video capture not opened or is paused.")
+            print("Video capture not opened or is paused (seeking).")
+
+    def seek_video(self, position):
+        if self.cap is not None and self.cap.isOpened():
+            print(f"Seeking to position: {position}")
+            self.is_seeking = True
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, position)
+            self.frame_index = position
+            self.update_frame()
+            self.is_seeking = False
 
     def mousePressEvent(self, event: QMouseEvent):
+        self.pause_video()
         if self.box_coordinates:
             x = event.x()
             y = event.y()
@@ -160,9 +196,6 @@ class CustomVideoWidget(QLabel):
             if not hovering_over_box:
                 self.setCursor(QCursor(Qt.ArrowCursor))
 
-    def enterEvent(self, event):
-        self.pause_video()
-
     def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key_Space:
             self.pause_unpause()
@@ -181,3 +214,45 @@ class CustomVideoWidget(QLabel):
     def resume_video(self):
         self.is_paused = False
         self.timer.start(30)
+
+    def slider_released(self):
+        if self.is_paused:
+            self.resume_video()
+            self.update_frame()
+            self.pause_video()
+        else:
+            self.resume_video()
+
+    def set_highlighted_frames(self, frames):
+        self.highlighted_frames = frames
+        self.update_progress_bar()
+        self.resume_video()
+        self.update_frame()
+        self.pause_video()
+        self.seek_video(self.frame_index - 1)
+
+    def update_progress_bar(self):
+        # Custom paint on progress bar to highlight specific frames
+        class HighlightedSlider(QSlider):
+            def __init__(self, highlighted_frames, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.highlighted_frames = highlighted_frames
+                self.setValue(highlighted_frames[0] if highlighted_frames else 0)
+
+            def paintEvent(self, event):
+                painter = QPainter(self)
+                pen = QPen(QColor(71, 187, 237), 3)
+                painter.setPen(pen)
+                for frame in self.highlighted_frames:
+                    position = int(frame / self.maximum() * self.width())
+                    painter.drawLine(position, 0, position, 8)
+
+                super().paintEvent(event)  # Draw the default slider on top of the highlighted frames
+
+        self.layout.removeWidget(self.progress_bar)
+        self.progress_bar.destroy()
+        self.progress_bar = HighlightedSlider(self.highlighted_frames, Qt.Horizontal, self)
+        self.progress_bar.setRange(0, self.video_duration)
+        self.progress_bar.sliderMoved.connect(self.seek_video)
+        self.progress_bar.sliderReleased.connect(self.slider_released)
+        self.layout.addWidget(self.progress_bar)

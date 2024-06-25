@@ -9,7 +9,6 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage  # install Q
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QPushButton, QWidget
 from PyQt5.QtCore import QUrl, QRect, QTimer, pyqtSlot, QObject, Qt
 import folium
-from folium import Marker
 
 from mainwindow import Ui_MainWindow  # Import the generated UI class
 from custom_video_widget import CustomVideoWidget  # Import the custom video widget class
@@ -265,6 +264,14 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
     def bounding_box_clicked(self, id):
         print(f"Bounding box {id} clicked.")
+        frames = []
+        with open(f"D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/labels/{id}.txt", 'r') as file:
+            for line in file:
+                parts = line.strip().split()
+                frame = int(parts[0])
+                frames.append(frame)
+        self.video_widget.selected_vehicle_id = id
+        self.video_widget.set_highlighted_frames(frames)
 
 
 if __name__ == "__main__":
