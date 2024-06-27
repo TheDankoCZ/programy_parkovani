@@ -28,7 +28,7 @@ class CustomVideoWidget(QLabel):
 
         self.spacer = QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.progress_bar = QSlider(Qt.Horizontal, self)
-        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setRange(1, 100)
         self.progress_bar.sliderMoved.connect(self.seek_video)
         self.progress_bar.sliderReleased.connect(self.slider_released)
         self.layout = QVBoxLayout(self)
@@ -65,7 +65,7 @@ class CustomVideoWidget(QLabel):
         self.timer.start(30)  # Adjust based on video frame rate
         self.frame_index = 1
         self.video_duration = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        self.progress_bar.setRange(0, self.video_duration)
+        self.progress_bar.setRange(1, self.video_duration)
         self.parse_label_files()
         self.video_name = os.path.basename(video_path).split('.')[0]
         self.resume_video()
@@ -125,7 +125,7 @@ class CustomVideoWidget(QLabel):
                 # Draw bounding boxes on the pixmap
                 painter = QPainter(pixmap)
                 pen_nehotovo = QPen(QColor(255, 0, 0), 2)
-                pen_selected = QPen(QColor(0, 255, 0), 2)
+                pen_selected = QPen(QColor(255, 165, 0), 2)
                 pen_hotovo = QPen(QColor(0, 0, 255), 2)
                 pen_disabled = QPen(QColor(128, 128, 128), 2)
                 self.box_coordinates = []  # Store box coordinates separately
@@ -252,7 +252,7 @@ class CustomVideoWidget(QLabel):
         self.layout.removeWidget(self.progress_bar)
         self.progress_bar.destroy()
         self.progress_bar = HighlightedSlider(self.highlighted_frames, Qt.Horizontal, self)
-        self.progress_bar.setRange(0, self.video_duration)
+        self.progress_bar.setRange(1, self.video_duration)
         self.progress_bar.sliderMoved.connect(self.seek_video)
         self.progress_bar.sliderReleased.connect(self.slider_released)
         self.layout.addWidget(self.progress_bar)

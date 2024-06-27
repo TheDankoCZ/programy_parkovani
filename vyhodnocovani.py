@@ -13,7 +13,7 @@ import folium
 from mainwindow import Ui_MainWindow  # Import the generated UI class
 from custom_video_widget import CustomVideoWidget  # Import the custom video widget class
 
-USE_MAPY_CZ = False     # True znamená využití dlaždic z Mapy.cz -> stojí to kredity, False znamená žádné dlaždice
+USE_MAPY_CZ = True     # True znamená využití dlaždic z Mapy.cz -> stojí to kredity, False znamená žádné dlaždice
 
 
 class WebEnginePage(QWebEnginePage):
@@ -39,11 +39,14 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.video_widget.set_frame_update_callback(self.update_camera_marker)
         self.video_widget.set_bounding_box_callback(self.bounding_box_clicked)
 
-        self.zpet_na_zacatek.clicked.connect(self.play_video)
+        self.zpet_na_zacatek.clicked.connect(self.open_video_project)
         self.prehrat.clicked.connect(self.video_widget.pause_unpause)
 
         # Path to video file
         self.video_path = "D:/bakalarka/360 exports/2023-05-24 S04E03-360 11-55-004 (2)_cropped.mp4"
+
+        self.vehiles = {}
+        self.vehicles_done_ids = []
 
         # -------------------- MAPA --------------------
 
@@ -121,7 +124,6 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
         # Setup map events
         self.webview.loadFinished.connect(self.setup_map_events)
-        self.webview.loadFinished.connect(self.add_markers)
         self.webview.loadFinished.connect(lambda: self.draw_polyline_from_file("D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/test_route_gps2.txt"))
         self.webview.loadFinished.connect(lambda: self.read_synced_camera_gps("D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/synced_test_route_gps2.txt"))
 
@@ -138,7 +140,15 @@ class MainApp(QMainWindow, Ui_MainWindow):
             
             // Add a marker to the map
             function addMarker(id, lat, lng) {
-                let marker = L.marker([lat, lng], popup=id.toString()).addTo(map);
+                let marker = L.circleMarker([lat, lng], {
+                    radius: 8,
+                    color: 'red',
+                    fillColor: 'red',
+                    fillOpacity: 0.5
+                }).addTo(map);
+                marker.on('click', function() {
+                    bridge.onMarkerClicked(id);
+                });
                 markers[id] = marker;
             }
             
@@ -193,20 +203,12 @@ class MainApp(QMainWindow, Ui_MainWindow):
     @pyqtSlot(float, float)
     def onMapMoving(self, lat, lng):
         self.gps_text.setText(f"{lat}, {lng}")
-        script = """
-                var mapElementId = document.getElementsByClassName('folium-map')[0].id;
-                var map = window[mapElementId];
-                var marker = markers[0];
-                if (marker) {
+        script = f"""
+                var marker = markers[{self.video_widget.selected_vehicle_id}];
+                if (marker) {{
                     marker.setLatLng([%s, %s]);
-                }
+                }}
                 """ % (lat, lng)
-        self.webview.page().runJavaScript(script)
-
-    def add_markers(self):
-        script = """
-            addMarker(0, 50.45570138940419, 14.379894059611189);
-            """
         self.webview.page().runJavaScript(script)
 
     def draw_polyline_from_file(self, filepath):
@@ -247,7 +249,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         coordinates = self.gps_text.text()
         lat, lon = coordinates.split(", ")
 
-        # Construct the Mapy.cz panorama URL
+        # Construct the Mapy.cz URL (https://developer.mapy.cz/dalsi-vyuziti-mapy-cz/url-mapy-cz/)
         url = f"https://mapy.cz/fnc/v1/showmap?mapset=aerial&center={lon},{lat}&zoom=20&marker=true"
 
         # Open the URL in the default web browser
@@ -257,10 +259,92 @@ class MainApp(QMainWindow, Ui_MainWindow):
     def open_external_link(self, url):
         QDesktopServices.openUrl(QUrl(url))
 
+    @pyqtSlot(int)
+    def onMarkerClicked(self, id):
+        self.bounding_box_clicked(id)  # na konci volá select_marker
+        self.video_widget.seek_video(self.video_widget.highlighted_frames[0])
+
+    def select_marker(self, id):
+        script = f"""
+            for (var i = 0; i < markers.length; i++) {{
+                if (markers[i]) {{
+                    markers[i].setStyle({{
+                        color: 'red',
+                        fillColor: 'red',
+                        fillOpacity: 0.4
+                    }});
+                }}
+            }}
+            for (var i = 0; i < markers.length; i++) {{
+                if (markers[{id}]) {{
+                    if ({self.vehicles_done_ids}.includes({id})) {{
+                        markers[{id}].setStyle({{
+                            color: 'green',
+                            fillColor: 'green',
+                            fillOpacity: 0.6
+                        }});
+                    }}
+                }}
+            }}
+            if (markers[{id}]) {{
+                markers[{id}].setStyle({{
+                    color: 'orange',
+                    fillColor: 'orange',
+                    fillOpacity: 0.9
+                }});
+            }}
+            else {{
+                console.log('Marker with ID ' + id + ' not found');
+            }}
+            var mapElementId = document.getElementsByClassName('folium-map')[0].id;
+            var map = window[mapElementId];
+            map.setView(markers[{id}].getLatLng(), map.getZoom());
+        """
+        self.webview.page().runJavaScript(script)
+
+    def bind_marker_to_move(self, id):
+        script = f"""
+            var marker = markers[{id}];
+            marker.on('drag', function(event) {{
+                var lat = event.latlng.lat;
+                var lng = event.latlng.lng;
+                bridge.onMarkerMoved({id}, lat, lng);
+            }});
+        """
+        self.webview.page().runJavaScript(script)
+
     # -------------------- VIDEO --------------------
 
-    def play_video(self):
+    def open_video_project(self):
         self.video_widget.load_video(self.video_path)
+        # načtení všech vozidel
+        with open("D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/gps_output.txt", 'r') as file:
+            for line in file:
+                parts = line.strip().split()
+                id = int(parts[0])
+                type = parts[1]
+                lat = float(parts[2])
+                lon = float(parts[3])
+                status = ""
+                if lat == 0 and lon == 0:
+                    status = "not_detected"
+                self.vehiles[id] = [type, lat, lon, status]
+
+        # načtení hotových vozidel
+        with open("D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/final_output.txt", 'r') as file:
+            for line in file:
+                parts = line.strip().split()
+                id = int(parts[0])
+                type = parts[1]
+                lat = float(parts[2])
+                lon = float(parts[3])
+                status = parts[4]
+                self.vehiles[id] = [type, lat, lon, status]
+
+        for id, data in self.vehiles.items():
+            if data[0] != 0 or data[1] != 0:
+                script = f"addMarker({id}, {data[1]}, {data[2]})"
+                self.webview.page().runJavaScript(script)
 
     def bounding_box_clicked(self, id):
         print(f"Bounding box {id} clicked.")
@@ -272,6 +356,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
                 frames.append(frame)
         self.video_widget.selected_vehicle_id = id
         self.video_widget.set_highlighted_frames(frames)
+        self.select_marker(id)
 
 
 if __name__ == "__main__":

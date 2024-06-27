@@ -2285,7 +2285,7 @@
             <item>
              <layout class="QHBoxLayout" name="horizontalLayout_3">
               <item>
-               <widget class="QPushButton" name="frameskip_dozadu">
+               <widget class="QPushButton" name="skip_dozadu">
                 <property name="text">
                  <string>&lt;1</string>
                 </property>
@@ -2299,7 +2299,7 @@
                </widget>
               </item>
               <item>
-               <widget class="QPushButton" name="frameski_dopredu">
+               <widget class="QPushButton" name="skip_dopredu">
                 <property name="text">
                  <string>1&gt;</string>
                 </property>
@@ -2376,6 +2376,19 @@
         </item>
         <item>
          <layout class="QVBoxLayout" name="mapLayout"/>
+        </item>
+        <item>
+         <widget class="QLabel" name="hint_label">
+          <property name="text">
+           <string>Kliknutím vyberte vozidlo. Dvojitým kliknutím se přesunete ve videu na začátek jeho detekce. Pokud vozidlo nemá pozici v mapě, vytvoříte ji výběrem vozidla ve videu nebo vytvořením nového vozidla pomocí tlačítka &quot;Vytvořit nové&quot;. Pohybem mapy přesouváte polohu vozidla v mapě.</string>
+          </property>
+          <property name="scaledContents">
+           <bool>false</bool>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>
