@@ -45,8 +45,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
         # Path to video file
         self.video_path = "D:/bakalarka/360 exports/2023-05-24 S04E03-360 11-55-004 (2)_cropped.mp4"
 
-        self.vehiles = {}
-        self.vehicles_done_ids = []
+        self.vehicles = {}  # {id: [type, lat, lon, status]}
+
+        self.zrusit_vozidlo_button.clicked.connect(self.zrusit_vozidlo)
 
         # -------------------- MAPA --------------------
 
@@ -265,6 +266,28 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.video_widget.seek_video(self.video_widget.highlighted_frames[0])
 
     def select_marker(self, id):
+        set_styles_script = ""
+        for key, data in self.vehicles.items():
+            vehicle_status = data[3]
+            set_styles_script += f"""
+                if (markers[{key}]) {{
+                    if ('{vehicle_status}' === "done") {{
+                        markers[{key}].setStyle({{
+                            color: 'green',
+                            fillColor: 'green',
+                            fillOpacity: 0.6
+                        }});
+                    }}
+                    if ('{vehicle_status}' === "disabled") {{
+                        markers[{key}].setStyle({{
+                            color: 'lightgray',
+                            fillColor: 'lightgray',
+                            fillOpacity: 0.2
+                        }});
+                    }}
+                }}
+            """
+
         script = f"""
             for (var i = 0; i < markers.length; i++) {{
                 if (markers[i]) {{
@@ -275,26 +298,15 @@ class MainApp(QMainWindow, Ui_MainWindow):
                     }});
                 }}
             }}
-            for (var i = 0; i < markers.length; i++) {{
-                if (markers[{id}]) {{
-                    if ({self.vehicles_done_ids}.includes({id})) {{
-                        markers[{id}].setStyle({{
-                            color: 'green',
-                            fillColor: 'green',
-                            fillOpacity: 0.6
-                        }});
-                    }}
-                }}
-            }}
+            {set_styles_script}
             if (markers[{id}]) {{
                 markers[{id}].setStyle({{
                     color: 'orange',
                     fillColor: 'orange',
                     fillOpacity: 0.9
                 }});
-            }}
-            else {{
-                console.log('Marker with ID ' + id + ' not found');
+            }} else {{
+                console.log('Marker with ID ' + {id} + ' not found');
             }}
             var mapElementId = document.getElementsByClassName('folium-map')[0].id;
             var map = window[mapElementId];
@@ -325,10 +337,11 @@ class MainApp(QMainWindow, Ui_MainWindow):
                 type = parts[1]
                 lat = float(parts[2])
                 lon = float(parts[3])
-                status = ""
                 if lat == 0 and lon == 0:
                     status = "not_detected"
-                self.vehiles[id] = [type, lat, lon, status]
+                else:
+                    status = "tbd"
+                self.vehicles[id] = [type, lat, lon, status]
 
         # načtení hotových vozidel
         with open("D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/final_output.txt", 'r') as file:
@@ -339,12 +352,25 @@ class MainApp(QMainWindow, Ui_MainWindow):
                 lat = float(parts[2])
                 lon = float(parts[3])
                 status = parts[4]
-                self.vehiles[id] = [type, lat, lon, status]
+                self.vehicles[id] = [type, lat, lon, status]
 
-        for id, data in self.vehiles.items():
+        for id, data in self.vehicles.items():
             if data[0] != 0 or data[1] != 0:
                 script = f"addMarker({id}, {data[1]}, {data[2]})"
                 self.webview.page().runJavaScript(script)
+
+        first_id_tbd = None
+        for id, data in self.vehicles.items():
+            if data[3] == "tbd":
+                first_id_tbd = id
+                break
+        if first_id_tbd is not None:
+            self.bounding_box_clicked(first_id_tbd)
+        else:
+            for id, data in self.vehicles.items():
+                if data[3] != "not_detected":
+                    self.bounding_box_clicked(id)
+                    break
 
     def bounding_box_clicked(self, id):
         print(f"Bounding box {id} clicked.")
@@ -357,6 +383,27 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.video_widget.selected_vehicle_id = id
         self.video_widget.set_highlighted_frames(frames)
         self.select_marker(id)
+
+        if self.vehicles[id][3] == "disabled":
+            self.zrusit_vozidlo_button.setText("Obnovit\nvozidlo")
+        else:
+            self.zrusit_vozidlo_button.setText("Zrušit\nvozidlo")
+
+    # -------------------- TLACITKA --------------------
+
+    def zrusit_vozidlo(self):
+        id = self.video_widget.selected_vehicle_id
+        if self.vehicles[id][3] == "disabled":
+            self.vehicles[id][3] = ""
+            self.zrusit_vozidlo_button.setText("Zrušit\nvozidlo")
+        else:
+            self.vehicles[id][3] = "disabled"
+            self.zrusit_vozidlo_button.setText("Obnovit\nvozidlo")
+        self.select_marker(id)
+
+        with open("D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/final_output.txt", 'w') as file:
+            for id, data in self.vehicles.items():
+                file.write(f"{id} {data[0]} {data[1]} {data[2]} {data[3]}\n")
 
 
 if __name__ == "__main__":
