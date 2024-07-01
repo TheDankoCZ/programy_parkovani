@@ -2559,8 +2559,32 @@ a další</string>
      <height>21</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menuProjekt">
+    <property name="title">
+     <string>Vyhodnocování</string>
+    </property>
+    <addaction name="action_otevrit_vyhodnocovani"/>
+   </widget>
+   <widget class="QMenu" name="menuValidace">
+    <property name="title">
+     <string>Validace</string>
+    </property>
+    <addaction name="action_otevrit_validace"/>
+   </widget>
+   <addaction name="menuProjekt"/>
+   <addaction name="menuValidace"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="action_otevrit_vyhodnocovani">
+   <property name="text">
+    <string>Otevřít soubor</string>
+   </property>
+  </action>
+  <action name="action_otevrit_validace">
+   <property name="text">
+    <string>Otevřít soubor</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

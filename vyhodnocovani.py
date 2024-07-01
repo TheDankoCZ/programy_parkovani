@@ -3,7 +3,7 @@ import sys
 import random
 
 from PyQt5 import QtCore
-from PyQt5.QtGui import QCursor, QDesktopServices
+from PyQt5.QtGui import QCursor, QDesktopServices, QIcon
 from PyQt5.QtWebChannel import QWebChannel
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage  # install QtWebEngineWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QPushButton, QWidget
@@ -27,6 +27,12 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
 
         self.setWindowTitle("Průzkum parkování")
+        self.setWindowIcon(QIcon("favicon.ico"))
+
+        # změna ikony v taskbaru
+        import ctypes
+        myappid = 'pruzkum.parkovani'
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
         # Create a custom video widget with max width and height
         max_width = 1900
