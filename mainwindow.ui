@@ -50,20 +50,40 @@
            </widget>
           </item>
           <item>
-           <spacer name="horizontalSpacer">
+           <widget class="Line" name="line">
             <property name="orientation">
-             <enum>Qt::Horizontal</enum>
+             <enum>Qt::Vertical</enum>
             </property>
-            <property name="sizeType">
-             <enum>QSizePolicy::Preferred</enum>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="popis_projektu_label">
+            <property name="font">
+             <font>
+              <bold>true</bold>
+             </font>
             </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>40</width>
-              <height>20</height>
-             </size>
+            <property name="text">
+             <string>Popis:</string>
             </property>
-           </spacer>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="popis_projektu">
+            <property name="text">
+             <string>Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="Line" name="line_2">
+            <property name="orientation">
+             <enum>Qt::Vertical</enum>
+            </property>
+           </widget>
           </item>
           <item>
            <widget class="QLabel" name="hotovo_label">
@@ -86,7 +106,14 @@
              </font>
             </property>
             <property name="text">
-             <string>69/100 (2 přeskočeny) -- 69%</string>
+             <string>69/100  (69%)</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="skocit_na_nehotove">
+            <property name="text">
+             <string>Skočit na nehotové</string>
             </property>
            </widget>
           </item>
@@ -2223,6 +2250,13 @@
                 </property>
                </spacer>
               </item>
+              <item>
+               <widget class="QPushButton" name="komentar_templates">
+                <property name="text">
+                 <string>Rychlé komentáře</string>
+                </property>
+               </widget>
+              </item>
              </layout>
             </item>
             <item>
@@ -2354,7 +2388,7 @@ vozidlo</string>
                </widget>
               </item>
               <item>
-               <widget class="QPushButton" name="pushButton">
+               <widget class="QPushButton" name="vytvorit_nove_vozidlo">
                 <property name="minimumSize">
                  <size>
                   <width>64</width>
@@ -2374,7 +2408,8 @@ vozidlo</string>
                  </size>
                 </property>
                 <property name="text">
-                 <string>PushButton</string>
+                 <string>Vytvořit
+nové</string>
                 </property>
                </widget>
               </item>
@@ -2534,7 +2569,7 @@ a další</string>
         <item>
          <widget class="QLabel" name="hint_label">
           <property name="text">
-           <string>Kliknutím vyberte vozidlo. Dvojitým kliknutím se přesunete ve videu na začátek jeho detekce. Pokud vozidlo nemá pozici v mapě, vytvoříte ji výběrem vozidla ve videu nebo vytvořením nového vozidla pomocí tlačítka &quot;Vytvořit nové&quot;. Pohybem mapy přesouváte polohu vozidla v mapě.</string>
+           <string>Kliknutím vyberte vozidlo. Dvojitým kliknutím se přesunete ve videu na začátek jeho detekce. Pokud vozidlo nemá pozici v mapě, vytvoříte ji výběrem vozidla ve videu nebo vytvořením nového vozidla pomocí tlačítka &quot;Vytvořit nové&quot;, toto využijete i pro vytváření volných parkovacích míst. Pohybem mapy přesouváte polohu vozidla (nebo parkovacího místa) v mapě.</string>
           </property>
           <property name="scaledContents">
            <bool>false</bool>
@@ -2571,8 +2606,15 @@ a další</string>
     </property>
     <addaction name="action_otevrit_validace"/>
    </widget>
+   <widget class="QMenu" name="menuNastaven">
+    <property name="title">
+     <string>Nastavení</string>
+    </property>
+    <addaction name="action_otevrit_nastaveni"/>
+   </widget>
    <addaction name="menuProjekt"/>
    <addaction name="menuValidace"/>
+   <addaction name="menuNastaven"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="action_otevrit_vyhodnocovani">
@@ -2583,6 +2625,11 @@ a další</string>
   <action name="action_otevrit_validace">
    <property name="text">
     <string>Otevřít soubor</string>
+   </property>
+  </action>
+  <action name="action_otevrit_nastaveni">
+   <property name="text">
+    <string>Nastavení...</string>
    </property>
   </action>
  </widget>

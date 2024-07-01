@@ -6,7 +6,7 @@ from PyQt5 import QtCore
 from PyQt5.QtGui import QCursor, QDesktopServices, QIcon
 from PyQt5.QtWebChannel import QWebChannel
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEnginePage  # install QtWebEngineWidgets
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QPushButton, QWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QPushButton, QWidget, QFileDialog
 from PyQt5.QtCore import QUrl, QRect, QTimer, pyqtSlot, QObject, Qt
 import folium
 
@@ -34,6 +34,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
         myappid = 'pruzkum.parkovani'
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
+        self.action_otevrit_vyhodnocovani.triggered.connect(self.open_vyhodnocovani)
+        self.action_otevrit_validace.triggered.connect(self.open_validace)
+
         # Create a custom video widget with max width and height
         max_width = 1900
         max_height = 400
@@ -45,13 +48,13 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.video_widget.set_frame_update_callback(self.update_camera_marker)
         self.video_widget.set_bounding_box_callback(self.bounding_box_clicked)
 
-        self.zpet_na_zacatek.clicked.connect(self.open_video_project)
+        self.zpet_na_zacatek.clicked.connect(self.video_widget.seek_video(1))
         self.prehrat.clicked.connect(self.video_widget.pause_unpause)
 
-        # Path to video file
-        self.video_path = "D:/bakalarka/360 exports/2023-05-24 S04E03-360 11-55-004 (2)_cropped.mp4"
-
-        self.vehicles = {}  # {id: [type, lat, lon, status]}
+        # {id: [kategorie_vozidla, lat, lon, status, cas_ve_videu, cas_realny,
+        # typ_parkoviste, oznaceni_parkoviste, typ_povrchu, vztah_k_provozu, legalnost_parkovani, vrak,
+        # komentar, validovano, komentar_validace]}
+        self.vehicles = {}
 
         self.zrusit_vozidlo_button.clicked.connect(self.zrusit_vozidlo)
 
@@ -61,7 +64,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
         self.gps_text.setCursor(QCursor(Qt.PointingHandCursor))
         self.gps_text.mousePressEvent = self.open_external_map
 
-        # Create a QWebEngineView widget
+        # vytvoření widgetu pro mapu
         self.webview = QWebEngineView()
         self.webview.setPage(WebEnginePage(self.webview))
         self.mapLayout.addWidget(self.webview)
@@ -71,10 +74,10 @@ class MainApp(QMainWindow, Ui_MainWindow):
         channel.registerObject("bridge", self)
         self.webview.page().setWebChannel(channel)
 
-        # Generate Folium map and convert it to HTML
-        self.m = folium.Map(location=[50.45570138940419, 14.379894059611189], zoom_start=19, max_zoom=19, min_zoom=16, scrollWheelZoom=False, tiles=None)
+        # vytvoření mapy (defaultní souřadnice na ČVUT v Děčíně)
+        self.m = folium.Map(location=[50.7789992, 14.2160289], zoom_start=19, max_zoom=19, min_zoom=16, scrollWheelZoom=False, tiles=None)
 
-        # read the API key from a file
+        # čtení api klíče pro Mapy.cz
         if USE_MAPY_CZ:
             with open("mapycz_api_key.txt", "r") as file:
                 self.API_KEY = file.read().strip()  # TODO: Změnit na vlastní API klíč?
@@ -82,7 +85,7 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.API_KEY = ""
             print("Využití dlaždic z Mapy.cz není povoleno (USE_MAPY_CZ).")
 
-        # Add custom tile layer from Mapy.cz
+        # přidání dlaždic z Mapy.cz
         folium.TileLayer(
             tiles='https://api.mapy.cz/v1/maptiles/aerial/256/{z}/{x}/{y}?apikey=' + self.API_KEY,
             attr='<a href="#" onclick="bridge.open_external_link(\'https://api.mapy.cz/copyright\')">&copy; Seznam.cz a.s. a další</a>',
@@ -93,10 +96,9 @@ class MainApp(QMainWindow, Ui_MainWindow):
             control=True
         ).add_to(self.m)
 
-        # Save the map as an HTML file
         self.m.save("map.html")
 
-        # Modify the HTML to include the custom logo control
+        # přidání potřebného loga Mapy.cz do HTML souboru
         with open("map.html", "r") as file:
             map_html = file.read()
 
@@ -122,10 +124,10 @@ class MainApp(QMainWindow, Ui_MainWindow):
         with open("map.html", "w") as file:
             file.write(map_html)
 
-        # Append to the html file
+        # připsání ještě potřebných skriptů do HTML souboru
         with open("map.html", "a") as f:
             f.write("<script src=\"qrc:///qtwebchannel/qwebchannel.js\"></script>")
-            f.write("<script src=\"leaflet.rotatedMarker.js\"></script>")   # include the Leaflet.RotatedMarker library
+            f.write("<script src=\"leaflet.rotatedMarker.js\"></script>")   # Leaflet.RotatedMarker knihovna pro rotaci markeru
 
         self.webview.load(QtCore.QUrl.fromLocalFile("/map.html"))
 
@@ -227,12 +229,6 @@ class MainApp(QMainWindow, Ui_MainWindow):
         script = f"drawPolyline({gps})"
         self.webview.page().runJavaScript(script)
 
-    def read_synced_camera_gps(self, filepath):
-        with open(filepath, 'r') as file:
-            for line in file:
-                lat, lng = map(float, line.strip().split(','))
-                self.camera_gps_coordinates.append([lat, lng])
-
     def update_camera_marker(self, frame_index):
         if frame_index < len(self.camera_gps_coordinates):
             lat, lng = self.camera_gps_coordinates[frame_index]
@@ -333,21 +329,19 @@ class MainApp(QMainWindow, Ui_MainWindow):
 
     # -------------------- VIDEO --------------------
 
-    def open_video_project(self):
-        self.video_widget.load_video(self.video_path)
-        # načtení všech vozidel
-        with open("D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/gps_output.txt", 'r') as file:
-            for line in file:
-                parts = line.strip().split()
-                id = int(parts[0])
-                type = parts[1]
-                lat = float(parts[2])
-                lon = float(parts[3])
-                if lat == 0 and lon == 0:
-                    status = "not_detected"
-                else:
-                    status = "tbd"
-                self.vehicles[id] = [type, lat, lon, status]
+    def open_video_project(self, nazev_projektu, popis_projektu, slozka_projektu, nazev_videa, nastaveni, camera_gps_points, camera_gps_track):
+        # načtení videa
+        self.video_widget.load_video(slozka_projektu + "/" + nazev_videa)
+
+        # ----- TODO: nastaveni -----
+
+        # vykreslení cesty kamery
+        script = f"drawPolyline({camera_gps_points})"
+        self.webview.page().runJavaScript(script)
+
+        # načtení všech bodů kamery
+        for point in camera_gps_track:
+            self.camera_gps_coordinates.append(point)
 
         # načtení hotových vozidel
         with open("D:/bakalarka/PyCharm/bakalarka_ui/programy_parkovani/final_output.txt", 'r') as file:
@@ -394,6 +388,69 @@ class MainApp(QMainWindow, Ui_MainWindow):
             self.zrusit_vozidlo_button.setText("Obnovit\nvozidlo")
         else:
             self.zrusit_vozidlo_button.setText("Zrušit\nvozidlo")
+
+    # -------------------- MENU --------------------
+
+    def open_vyhodnocovani(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Otevřít soubor", "", "Konfigurační soubor parkování (*.pconf.txt)")
+        if file_path:
+            print(f"Otevřen soubor: {file_path}")
+            slozka_projektu = "/".join(file_path.split("/")[:-1])
+            camera_gps_points = []
+            camera_gps_track = []
+            next_lines = ""
+            with open(file_path, 'r') as file:
+                nazev_projektu = file.readline().strip()
+                popis_projektu = file.readline().strip()
+                video_name = file.readline().strip()
+                for line in file:
+                    if line.startswith("*KONEC"):
+                        next_lines = ""
+                    elif line.startswith(">--- Nastaveni"):
+                        next_lines = "Nastaveni"
+                        continue  # TODO: načíst nastavení
+                    elif line.startswith(">--- Body Kamery"):
+                        next_lines = "Body Kamery"
+                    elif line.startswith(">--- Cesta Kamery"):
+                        next_lines = "Cesta Kamery"
+                    elif line.startswith(">--- Detekce Objektu"):
+                        next_lines = "Detekce Objektu"
+
+                    if next_lines == "Nastaveni":
+                        continue  # TODO: načíst nastavení
+                    elif next_lines == "Body Kamery":
+                        parts = line.strip().split()
+                        lat = float(parts[0])
+                        lon = float(parts[1])
+                        camera_gps_points.append([lat, lon])
+                    elif next_lines == "Cesta Kamery":
+                        parts = line.strip().split()
+                        lat = float(parts[0])
+                        lon = float(parts[1])
+                        camera_gps_track.append([lat, lon])
+                    elif next_lines == "Detekce Objektu":
+                        parts = line.strip().split()
+                        id = int(parts[0])
+                        kategorie_vozidla = int(parts[1])
+                        lat = float(parts[2])
+                        lon = float(parts[3])
+                        status = parts[4]
+                        cas_ve_videu = int(parts[5])
+                        cas_realny = int(parts[6])
+                        typ_parkoviste = int(parts[7])
+                        oznaceni_parkoviste = int(parts[8])
+                        typ_povrchu = int(parts[9])
+                        vztah_k_provozu = int(parts[10])
+                        legalnost_parkovani = int(parts[11])
+                        vrak = int(parts[12])
+                        komentar = parts[13]
+                        validovano = parts[14]
+                        komentar_validace = parts[15]
+                        self.vehicles[id] = [kategorie_vozidla, lat, lon, status, cas_ve_videu, cas_realny,
+                                             typ_parkoviste, oznaceni_parkoviste, typ_povrchu, vztah_k_provozu, legalnost_parkovani, vrak,
+                                             komentar, validovano, komentar_validace]
+
+                self.open_video_project(nazev_projektu, popis_projektu, slozka_projektu, video_name, None, camera_gps_points, camera_gps_track)
 
     # -------------------- TLACITKA --------------------
 
